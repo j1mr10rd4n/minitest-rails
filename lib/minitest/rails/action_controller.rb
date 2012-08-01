@@ -16,20 +16,22 @@ module MiniTest
         include ::ActionController::TestCase::Behavior
 
         def self.determine_default_controller_class(name)
-          # Override this method to support nested describes
-          #
-          # describe WidgetsController do
-          #   describe "index" do
-          #     it "is successful" do
-          #       assert_response :success
-          #     end
-          #   end
-          # end
-          #
-          # Original implementation:
-          # name.sub(/Test$/, '').safe_constantize
-          # safe_constantize is not supported in Rails 3.0...
-          ControllerLookup.find name
+          class_hierarchy = [self]
+          until class_hierarchy.last == Object do
+            class_hierarchy << class_hierarchy.last.superclass
+          end
+          controller = class_hierarchy.each do |klass|
+                         begin
+                           _klassname = klass.to_s.sub(/Test$/,'')
+                           _klass = _klassname.constantize
+                           break(_klass) if _klass < ::ActionController::Base
+                         rescue NameError
+                           next
+                         end
+                         nil
+                       end
+          return controller unless controller.nil?
+          raise ::NameError.new("Unable to resolve controller for #{name}")
         end
       end
 
